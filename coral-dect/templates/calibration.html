@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calibração - FRC</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #222; color: white; text-align: center; overflow-x: hidden; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: black; }
+        .header a { color: white; text-decoration: none; margin: 10px; }
+        .container { width: 100%; margin: auto; padding: 20px; display: flex; justify-content: space-evenly; }
+        .calibration-area { display: flex; flex-direction: column; align-items: center; }
+        canvas, video, img { width: 640px; height: 480px; border: 2px solid white; display: block; margin-bottom: 10px; cursor: crosshair; }
+        .inputs { display: flex; flex-direction: column; align-items: center; }
+        input { margin: 5px; padding: 5px; width: 80px; }
+        button { background-color: #1f720c; color: white; padding: 10px; margin-top: 10px; border: none; cursor: pointer; }
+        .point-marker { position: absolute; width: 10px; height: 10px; background-color: red; border-radius: 50%; transform: translate(-50%, -50%); }
+        #pointContainer { position: relative; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2 style="color: yellow;">JACTECH</h2>
+        <div>
+            <a href="/">HOME</a>
+            <a href="/calibration">CALIBRAÇÃO</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="calibration-area">
+            <h1>Calibração da Homografia</h1>
+            <label for="calibration_side">Selecione o lado da arena:</label>
+            <select id="calibration_side" onchange="updatePoints()">
+                <option value="1_azul">1 Azul</option>
+                <option value="1_vermelho">1 Vermelho</option>
+                <option value="3_azul">3 Azul</option>
+                <option value="3_vermelho">3 Vermelho</option>
+            </select>
+            
+            <div id="media-container">
+                <div id="pointContainer">
+                    <video id="video" autoplay></video>
+                    <img id="capturedImage" style="display: none;">
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+            </div>
+
+            <button id="captureBtn">Tirar Foto</button>
+            <input type="file" id="upload" accept="image/*">
+
+            <div class="inputs">
+                <p>Ponto 1: X <span id="x1"></span> Y <span id="y1"></span></p>
+                <p>Ponto 2: X <span id="x2"></span> Y <span id="y2"></span></p>
+                <p>Ponto 3: X <span id="x3"></span> Y <span id="y3"></span></p>
+                <p>Ponto 4: X <span id="x4"></span> Y <span id="y4"></span></p>
+                <button onclick="savePoints()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let video = document.getElementById("video");
+        let captureBtn = document.getElementById("captureBtn");
+        let uploadInput = document.getElementById("upload");
+        let canvas = document.getElementById("canvas");
+        let ctx = canvas.getContext("2d");
+        let capturedImage = document.getElementById("capturedImage");
+        let mediaStream = null;
+        let pointContainer = document.getElementById("pointContainer");
+        let points = [];
+
+        // Definir pontos fixos para cada lado da arena
+        const arenaPoints = {
+            "1_azul": [ {x: 3.330, y:4.670}, {x: 4.490, y: 2.666}, {x: 5.400, y:0}, {x: 1.770, y:0} ],
+            "1_vermelho": [ {x: 14.230, y:3.420}, {x: 13.000, y: 2.666}, {x: 13.400, y:0}, {x:15.800, y:0} ],
+            "3_azul": [ {x: 3.330, y:3.360}, {x: 4.490, y: 5.370}, {x: 5.400, y:8.000}, {x: 1.770, y:8.000} ],
+            "3_vermelho": [ {x:14.230, y:4.666}, {x: 13.000, y: 5.320}, {x: 13.400, y:8.000}, {x: 15.870, y:8.000} ]
+        };
+
+        function updatePoints() {
+            let side = document.getElementById("calibration_side").value;
+            points = arenaPoints[side];
+            for (let i = 0; i < points.length; i++) {
+                document.getElementById("x" + (i + 1)).innerText = points[i].x;
+                document.getElementById("y" + (i + 1)).innerText = points[i].y;
+            }
+        }
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                mediaStream = stream;
+                video.srcObject = stream;
+            })
+            .catch(function (error) {
+                console.log("Erro ao acessar a câmera: ", error);
+            });
+        }
+
+        function stopCamera() {
+            if (mediaStream) {
+                let tracks = mediaStream.getTracks();
+                tracks.forEach(track => track.stop());
+                video.srcObject = null;
+                mediaStream = null;
+            }
+        }
+
+        captureBtn.addEventListener("click", function () {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            capturedImage.src = canvas.toDataURL("image/png");
+            capturedImage.style.display = "block";
+            video.style.display = "none";
+            stopCamera();
+        });
+
+        uploadInput.addEventListener("change", function (event) {
+            let file = event.target.files[0];
+            if (file) {
+                let reader = new FileReader();
+                reader.onload = function (e) {
+                    capturedImage.src = e.target.result;
+                    capturedImage.style.display = "block";
+                    video.style.display = "none";
+                    stopCamera();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        capturedImage.addEventListener("click", function (event) {
+            if (document.querySelectorAll(".point-marker").length < 4) {
+                let rect = capturedImage.getBoundingClientRect();
+                let x = event.clientX - rect.left;
+                let y = event.clientY - rect.top;
+
+                let marker = document.createElement("div");
+                marker.className = "point-marker";
+                marker.style.left = `${x}px`;
+                marker.style.top = `${y}px`;
+                pointContainer.appendChild(marker);
+            }
+        });
+
+        function savePoints() {
+            let calibrationData = {
+                side: document.getElementById("calibration_side").value,
+                points: points
+            };
+            fetch("/save_calibration", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(calibrationData)
+            })
+            .then(response => response.json())
+            .then(data => alert("Calibração salva com sucesso!"))
+            .catch(error => console.log("Erro ao salvar: ", error));
+        }
+
+        function savePoints() {
+        let calibrationData = {
+            side: document.getElementById("calibration_side").value,
+            points: arenaPoints[document.getElementById("calibration_side").value],
+            image: capturedImage.src  // Enviando a imagem capturada
+        };
+
+        fetch("/save_calibration", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(calibrationData)
+        })
+        .then(response => response.json())
+        .then(data => alert("Calibração salva com sucesso!"))
+        .catch(error => console.log("Erro ao salvar: ", error));
+    }
+
+    window.addEventListener("beforeunload", function () {
+        fetch("/stop_camera", { method: "POST" });
+    });
+    
+        startCamera();
+        updatePoints();
+    </script>
+</body>
+</html>
