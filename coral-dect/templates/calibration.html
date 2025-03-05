@@ -5,14 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calibração - FRC</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #222; color: white; text-align: center; overflow-x: hidden; }
+        body { font-family: Arial, sans-serif; background-color: #222; color: white; text-align: center; }
         .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: black; }
         .header a { color: white; text-decoration: none; margin: 10px; }
         .container { width: 100%; margin: auto; padding: 20px; display: flex; justify-content: space-evenly; }
         .calibration-area { display: flex; flex-direction: column; align-items: center; }
-        canvas, video, img { width: 640px; height: 480px; border: 2px solid white; display: block; margin-bottom: 10px; cursor: crosshair; }
-        .inputs { display: flex; flex-direction: column; align-items: center; }
-        input { margin: 5px; padding: 5px; width: 80px; }
+        canvas, video, img { width: 640px; height: 480px; border: 2px solid white; cursor: crosshair; }
+        .inputs { margin-top: 10px; }
         button { background-color: #1f720c; color: white; padding: 10px; margin-top: 10px; border: none; cursor: pointer; }
         .point-marker { position: absolute; width: 10px; height: 10px; background-color: red; border-radius: 50%; transform: translate(-50%, -50%); }
         #pointContainer { position: relative; display: inline-block; }
@@ -31,7 +30,7 @@
         <div class="calibration-area">
             <h1>Calibração da Homografia</h1>
             <label for="calibration_side">Selecione o lado da arena:</label>
-            <select id="calibration_side" onchange="updatePoints()">
+            <select id="calibration_side">
                 <option value="1_azul">1 Azul</option>
                 <option value="1_vermelho">1 Vermelho</option>
                 <option value="3_azul">3 Azul</option>
@@ -57,6 +56,7 @@
                 <button onclick="savePoints()">Salvar</button>
             </div>
         </div>
+        <div id="previewContainer"></div>
     </div>
 
     <script>
@@ -66,31 +66,12 @@
         let canvas = document.getElementById("canvas");
         let ctx = canvas.getContext("2d");
         let capturedImage = document.getElementById("capturedImage");
-        let mediaStream = null;
         let pointContainer = document.getElementById("pointContainer");
-        let points = [];
-
-        // Definir pontos fixos para cada lado da arena
-        const arenaPoints = {
-            "1_azul": [ {x: 3.330, y:4.670}, {x: 4.490, y: 2.666}, {x: 5.400, y:0}, {x: 1.770, y:0} ],
-            "1_vermelho": [ {x: 14.230, y:3.420}, {x: 13.000, y: 2.666}, {x: 13.400, y:0}, {x:15.800, y:0} ],
-            "3_azul": [ {x: 3.330, y:3.360}, {x: 4.490, y: 5.370}, {x: 5.400, y:8.000}, {x: 1.770, y:8.000} ],
-            "3_vermelho": [ {x:14.230, y:4.666}, {x: 13.000, y: 5.320}, {x: 13.400, y:8.000}, {x: 15.870, y:8.000} ]
-        };
-
-        function updatePoints() {
-            let side = document.getElementById("calibration_side").value;
-            points = arenaPoints[side];
-            for (let i = 0; i < points.length; i++) {
-                document.getElementById("x" + (i + 1)).innerText = points[i].x;
-                document.getElementById("y" + (i + 1)).innerText = points[i].y;
-            }
-        }
+        let selectedPoints = [];
 
         function startCamera() {
             navigator.mediaDevices.getUserMedia({ video: true })
             .then(function (stream) {
-                mediaStream = stream;
                 video.srcObject = stream;
             })
             .catch(function (error) {
@@ -99,11 +80,9 @@
         }
 
         function stopCamera() {
-            if (mediaStream) {
-                let tracks = mediaStream.getTracks();
-                tracks.forEach(track => track.stop());
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
-                mediaStream = null;
             }
         }
 
@@ -132,24 +111,112 @@
         });
 
         capturedImage.addEventListener("click", function (event) {
-            if (document.querySelectorAll(".point-marker").length < 4) {
+            if (selectedPoints.length < 4) {
                 let rect = capturedImage.getBoundingClientRect();
                 let x = event.clientX - rect.left;
                 let y = event.clientY - rect.top;
+                selectedPoints.push({ x, y });
 
                 let marker = document.createElement("div");
                 marker.className = "point-marker";
                 marker.style.left = `${x}px`;
                 marker.style.top = `${y}px`;
                 pointContainer.appendChild(marker);
+
+                document.getElementById("x" + selectedPoints.length).innerText = x;
+                document.getElementById("y" + selectedPoints.length).innerText = y;
             }
         });
 
         function savePoints() {
+            if (selectedPoints.length !== 4) {
+                alert("Selecione exatamente 4 pontos.");
+                return;
+            }
+
+            let previewDiv = document.getElementById("previewContainer");
+            previewDiv.innerHTML = "<h3>Confirme os Pontos Selecionados</h3>";
+
+            let verifyCanvas = document.createElement("canvas");
+            let verifyCtx = verifyCanvas.getContext("2d");
+
+            // Scale preview canvas to match the captured image
+            verifyCanvas.width = capturedImage.width;
+            verifyCanvas.height = capturedImage.height;
+            verifyCtx.drawImage(capturedImage, 0, 0, verifyCanvas.width, verifyCanvas.height);
+
+            let tooltips = [];
+
+            // Get the preview image size
+            let previewScaleX = 640 / verifyCanvas.width;  // Adjusted for preview display width
+            let previewScaleY = 480 / verifyCanvas.height; // Adjusted for preview display height
+
+            selectedPoints.forEach((point, index) => {
+                let fieldPosition = calculateHomography(point);
+                let realArenaPoint = getRealArenaPoint(index);
+
+                // Scale points for correct display in the preview
+                let scaledX = point.x * previewScaleX;
+                let scaledY = point.y * previewScaleY;
+
+                // Draw point on preview canvas
+                verifyCtx.fillStyle = "red";
+                verifyCtx.beginPath();
+                verifyCtx.arc(scaledX, scaledY, 8, 0, 2 * Math.PI);
+                verifyCtx.fill();
+
+                // Label the points
+                verifyCtx.fillStyle = "white";
+                verifyCtx.font = "16px Arial";
+                verifyCtx.fillText(index + 1, scaledX + 10, scaledY - 10);
+
+                // Store tooltip information
+                tooltips.push({
+                    x: scaledX + 15, // Offset tooltip slightly
+                    y: scaledY - 25,
+                    text: `POV: (${point.x.toFixed(2)}, ${point.y.toFixed(2)})\nField: (${fieldPosition.x.toFixed(2)}, ${fieldPosition.y.toFixed(2)})\nReal: (${realArenaPoint.x}, ${realArenaPoint.y})`
+                });
+            });
+
+            // Convert the verification image to a preview
+            let verifyImage = document.createElement("img");
+            verifyImage.src = verifyCanvas.toDataURL("image/png");
+            verifyImage.style.border = "2px solid green";
+            verifyImage.style.marginTop = "10px";
+            verifyImage.style.position = "relative";
+            verifyImage.style.width = "640px";  // Ensure it matches the preview size
+            verifyImage.style.height = "480px";
+
+            previewDiv.appendChild(verifyImage);
+
+            // Create tooltips next to the dots
+            tooltips.forEach((tooltip, i) => {
+                let tooltipDiv = document.createElement("div");
+                tooltipDiv.className = "tooltip";
+                tooltipDiv.style.position = "absolute";
+                tooltipDiv.style.left = `${tooltip.x}px`;
+                tooltipDiv.style.top = `${tooltip.y}px`;
+                tooltipDiv.style.background = "rgba(0, 0, 0, 0.8)";
+                tooltipDiv.style.color = "white";
+                tooltipDiv.style.padding = "5px";
+                tooltipDiv.style.borderRadius = "5px";
+                tooltipDiv.style.fontSize = "12px";
+                tooltipDiv.style.whiteSpace = "pre-line";
+                tooltipDiv.innerText = tooltip.text;
+
+                previewDiv.appendChild(tooltipDiv);
+            });
+
+            console.log("Selected Points:", selectedPoints);
+
+            let savedImage = verifyCanvas.toDataURL("image/png");
+
             let calibrationData = {
                 side: document.getElementById("calibration_side").value,
-                points: points
+                points: selectedPoints,
+                image: savedImage
             };
+
             fetch("/save_calibration", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -160,29 +227,55 @@
             .catch(error => console.log("Erro ao salvar: ", error));
         }
 
-        function savePoints() {
-        let calibrationData = {
-            side: document.getElementById("calibration_side").value,
-            points: arenaPoints[document.getElementById("calibration_side").value],
-            image: capturedImage.src  // Enviando a imagem capturada
-        };
 
-        fetch("/save_calibration", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(calibrationData)
-        })
-        .then(response => response.json())
-        .then(data => alert("Calibração salva com sucesso!"))
-        .catch(error => console.log("Erro ao salvar: ", error));
-    }
+        function calculateHomography(point) {
+            let side = document.getElementById("calibration_side").value;
 
-    window.addEventListener("beforeunload", function () {
-        fetch("/stop_camera", { method: "POST" });
-    });
-    
+            // Example transformation (simulate a homography calculation)
+            let homographyMatrix = getHomographyMatrix(side);
+            let transformed = applyHomography(homographyMatrix, point);
+
+            return transformed;
+        }
+
+        function applyHomography(matrix, point) {
+            let x = point.x, y = point.y;
+            let transformedX = matrix[0] * x + matrix[1] * y + matrix[2];
+            let transformedY = matrix[3] * x + matrix[4] * y + matrix[5];
+
+            return { x: transformedX, y: transformedY };
+        }
+
+        function getHomographyMatrix(side) {
+            // Simulate homography matrices for each arena side
+            const matrices = {
+                "1_azul": [0.005, 0.002, -1.2, 0.003, 0.004, -0.8],
+                "1_vermelho": [0.004, 0.001, -1.1, 0.002, 0.005, -0.7],
+                "3_azul": [0.006, 0.003, -1.3, 0.004, 0.006, -0.9],
+                "3_vermelho": [0.005, 0.002, -1.0, 0.003, 0.005, -0.85]
+            };
+
+            return matrices[side] || [1, 0, 0, 0, 1, 0]; // Default identity matrix if side not found
+        }
+
+        function getRealArenaPoint(index) {
+            let side = document.getElementById("calibration_side").value;
+            const arenaPoints = {
+                "1_azul": [{x: 3.330, y:4.670}, {x: 4.490, y: 2.666}, {x: 5.400, y:0}, {x: 1.770, y:0}],
+                "1_vermelho": [{x: 14.230, y:3.420}, {x: 13.000, y: 2.666}, {x: 13.400, y:0}, {x:15.800, y:0}],
+                "3_azul": [{x: 3.330, y:3.360}, {x: 4.490, y: 5.370}, {x: 5.400, y:8.000}, {x: 1.770, y:8.000}],
+                "3_vermelho": [{x:14.230, y:4.666}, {x: 13.000, y: 5.320}, {x: 13.400, y:8.000}, {x: 15.870, y:8.000}]
+            };
+
+            return arenaPoints[side][index] || {x: 0, y: 0};
+        }
+
+
+        window.addEventListener("beforeunload", function () {
+            fetch("/stop_camera", { method: "POST" });
+        });
+
         startCamera();
-        updatePoints();
     </script>
 </body>
 </html>

@@ -34,7 +34,7 @@ def compute_homography():
     pov_points = np.array([
         [335,  356], [444,  336], [903,  292], [151,  418]
     ], dtype=np.float32)
-    field_points = np.array([
+    field_points = np.array([   
         [3.321, 3.289], [3.289, 2.658], [5.139, 0.000], [1.743, 0.000]
     ], dtype=np.float32)
     
