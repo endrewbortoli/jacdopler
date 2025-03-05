@@ -27,7 +27,8 @@
     <div class="container">
         <div>
             <h2>Detecção do Coral - FRC</h2>
-            <img class="video-feed" src="{{ url_for('video_feed') }}">
+            <video id="video" autoplay></video>
+            <img class="video-feed" id="videoStream" src="/video_feed" style="display: none;">
             <form method="post" action="/set_side">
                 <label for="side">Escolha o lado da arena:</label>
                 <select name="side">
@@ -49,6 +50,29 @@
     </div>
 
     <script>
+        let video = document.getElementById("video");
+        let mediaStream = null;
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                mediaStream = stream;
+                video.srcObject = stream;
+            })
+            .catch(function (error) {
+                console.log("Erro ao acessar a câmera: ", error);
+            });
+        }
+
+        function stopCamera() {
+            if (mediaStream) {
+                let tracks = mediaStream.getTracks();
+                tracks.forEach(track => track.stop());
+                video.srcObject = null;
+                mediaStream = null;
+            }
+        }
+
         function updateCoralPosition(x, y) {
             let marker = document.getElementById("coralMarker");
             let arena = document.getElementById("arenaImage");
@@ -56,7 +80,6 @@
             let arenaWidth = arena.width;
             let arenaHeight = arena.height;
 
-            // Normalizando a posição do Coral para a escala do mapa
             let mappedX = (x / 16) * arenaWidth;
             let mappedY = (y / 8) * arenaHeight;
 
@@ -64,7 +87,6 @@
             marker.style.top = `${mappedY}px`;
         }
 
-        // Atualiza a posição do Coral a cada segundo
         setInterval(() => {
             fetch("/get_coral_position")
                 .then(response => response.json())
@@ -74,17 +96,12 @@
                 .catch(error => console.log("Erro ao buscar posição do Coral:", error));
         }, 1000);
 
-        function startVideoFeed() {
-        let video = document.querySelector(".video-feed");
-        video.src = "/video_feed";
-    }
+        window.addEventListener("beforeunload", function () {
+            stopCamera();
+            fetch("/stop_camera", { method: "POST" });
+        });
 
-    window.onload = startVideoFeed;
-
-    window.addEventListener("beforeunload", function () {
-        fetch("/stop_camera", { method: "POST" });
-    });
-
+        startCamera();
     </script>
 </body>
 </html>
