@@ -23,6 +23,7 @@
         <div>
             <a href="/">HOME</a>
             <a href="/calibration">CALIBRAÇÃO</a>
+            <a href="/manage_calibrations">GERENCIAR CALIBRAÇÕES</a>
         </div>
     </div>
 
@@ -56,7 +57,11 @@
                 <button onclick="savePoints()">Salvar</button>
             </div>
         </div>
-        <div id="previewContainer"></div>
+        <div id="previewContainer">
+        </div>
+        <div id="pointDetailsContainer" style="margin-top: 20px; text-align: left;"></div>
+
+        
     </div>
 
     <script>
@@ -127,7 +132,7 @@
                 document.getElementById("y" + selectedPoints.length).innerText = y;
             }
         });
-
+        
         function savePoints() {
             if (selectedPoints.length !== 4) {
                 alert("Selecione exatamente 4 pontos.");
@@ -144,8 +149,6 @@
             verifyCanvas.width = capturedImage.width;
             verifyCanvas.height = capturedImage.height;
             verifyCtx.drawImage(capturedImage, 0, 0, verifyCanvas.width, verifyCanvas.height);
-
-            let tooltips = [];
 
             // Get the preview image size
             let previewScaleX = 640 / verifyCanvas.width;  // Adjusted for preview display width
@@ -169,13 +172,6 @@
                 verifyCtx.fillStyle = "white";
                 verifyCtx.font = "16px Arial";
                 verifyCtx.fillText(index + 1, scaledX + 10, scaledY - 10);
-
-                // Store tooltip information
-                tooltips.push({
-                    x: scaledX + 15, // Offset tooltip slightly
-                    y: scaledY - 25,
-                    text: `POV: (${point.x.toFixed(2)}, ${point.y.toFixed(2)})\nField: (${fieldPosition.x.toFixed(2)}, ${fieldPosition.y.toFixed(2)})\nReal: (${realArenaPoint.x}, ${realArenaPoint.y})`
-                });
             });
 
             // Convert the verification image to a preview
@@ -189,25 +185,26 @@
 
             previewDiv.appendChild(verifyImage);
 
-            // Create tooltips next to the dots
-            tooltips.forEach((tooltip, i) => {
-                let tooltipDiv = document.createElement("div");
-                tooltipDiv.className = "tooltip";
-                tooltipDiv.style.position = "absolute";
-                tooltipDiv.style.left = `${tooltip.x}px`;
-                tooltipDiv.style.top = `${tooltip.y}px`;
-                tooltipDiv.style.background = "rgba(0, 0, 0, 0.8)";
-                tooltipDiv.style.color = "white";
-                tooltipDiv.style.padding = "5px";
-                tooltipDiv.style.borderRadius = "5px";
-                tooltipDiv.style.fontSize = "12px";
-                tooltipDiv.style.whiteSpace = "pre-line";
-                tooltipDiv.innerText = tooltip.text;
+            // Create a container for point details
+            let pointDetailsContainer = document.getElementById("pointDetailsContainer");
+            pointDetailsContainer.innerHTML = "";  // Clear previous details
 
-                previewDiv.appendChild(tooltipDiv);
+            selectedPoints.forEach((point, index) => {
+                let fieldPosition = calculateHomography(point);
+                let realArenaPoint = getRealArenaPoint(index);
+
+                // Create a list item for each point with all three coordinate sets
+                let pointDetail = document.createElement("div");
+                pointDetail.style.marginBottom = "10px";
+                pointDetail.innerHTML = `
+                    <strong>Ponto ${index + 1}</strong><br>
+                    <b>POV:</b> (${point.x.toFixed(2)}, ${point.y.toFixed(2)})<br>
+                    <b>Field:</b> (${fieldPosition.x.toFixed(2)}, ${fieldPosition.y.toFixed(2)})<br>
+                    <b>Real:</b> (${realArenaPoint.x.toFixed(2)}, ${realArenaPoint.y.toFixed(2)})
+                `;
+
+                pointDetailsContainer.appendChild(pointDetail);
             });
-
-            console.log("Selected Points:", selectedPoints);
 
             let savedImage = verifyCanvas.toDataURL("image/png");
 
@@ -226,6 +223,8 @@
             .then(data => alert("Calibração salva com sucesso!"))
             .catch(error => console.log("Erro ao salvar: ", error));
         }
+
+
 
 
         function calculateHomography(point) {

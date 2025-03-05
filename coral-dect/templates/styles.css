@@ -1,0 +1,160 @@
+/* General Body Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #222;
+    color: white;
+    text-align: center;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: black;
+    border-bottom: 2px solid #1f720c;
+}
+
+.header h2 {
+    color: yellow;
+}
+
+.header a {
+    color: #1f720c;
+    text-decoration: none;
+    margin: 10px;
+}
+
+.header a:hover {
+    color: white;
+}
+
+/* Container */
+.container {
+    width: 80%;
+    margin: auto;
+    padding: 20px;
+    display: flex;
+    justify-content: space-evenly;
+    flex-wrap: wrap;
+}
+
+/* Calibration Area */
+.calibration-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Video Feed and Canvas */
+video, canvas, img {
+    width: 640px;
+    height: 480px;
+    border: 2px solid white;
+    cursor: crosshair;
+}
+
+/* Buttons */
+button {
+    background-color: #1f720c;
+    color: white;
+    padding: 10px;
+    margin-top: 10px;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #1e5c09;
+}
+
+/* Point Marker */
+.point-marker {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: red;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#pointContainer {
+    position: relative;
+    display: inline-block;
+}
+
+/* Inputs */
+.inputs p {
+    font-size: 14px;
+}
+
+.inputs span {
+    color: #1f720c;
+}
+
+/* Dashboard */
+.video-feed {
+    width: 640px;
+    height: 480px;
+    border: 2px solid white;
+}
+
+.arena-container {
+    position: relative;
+}
+
+.arena-map {
+    width: 1000px;
+    height: 700px;
+    position: relative;
+    margin-left: 50px;
+    border: 2px solid #1f720c;
+}
+
+.coral-marker {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: red;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #1f720c;
+}
+
+td {
+    background-color: #333;
+}
+
+img {
+    width: 150px;
+    height: auto;
+}
+
+.delete-btn {
+    background-color: red;
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    cursor: pointer;
+}
+
+.delete-btn:hover {
+    background-color: darkred;
+}

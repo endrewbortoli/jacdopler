@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GERENCIAR CALIBRAÇÕES</title>
+        <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        img {
+            width: 150px;
+            height: auto;
+        }
+        body { font-family: Arial, sans-serif; background-color: #222; color: white; text-align: center; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: black; }
+        .header a { color: white; text-decoration: none; margin: 10px; }
+        .container { width: 100%; margin: auto; padding: 20px; display: flex; justify-content: space-evenly; }
+        .calibration-area { display: flex; flex-direction: column; align-items: center; }
+        canvas, video, img { width: 640px; height: 480px; border: 2px solid white; cursor: crosshair; }
+        .inputs { margin-top: 10px; }
+        button { background-color: #1f720c; color: white; padding: 10px; margin-top: 10px; border: none; cursor: pointer; }
+        .point-marker { position: absolute; width: 10px; height: 10px; background-color: red; border-radius: 50%; transform: translate(-50%, -50%); }
+        #pointContainer { position: relative; display: inline-block; }
+    </style>
+
+</head>
+<body>
+    
+    <div class="header">
+        <h2 style="color: yellow;">JACTECH</h2>
+        <div>
+            <a href="/">HOME</a>
+            <a href="/calibration">CALIBRAÇÃO</a>
+            <a href="/manage_calibrations">GERENCIAR CALIBRAÇÕES</a>
+        </div>
+    </div>
+    <h2>Gerenciamento de Calibrações</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Lado</th>
+            <th>Imagem</th>
+            <th>Pontos</th>
+            <th>Ações</th>
+        </tr>
+        {% for calib in calibrations %}
+        <tr>
+            <td>{{ calib.id }}</td>
+            <td>{{ calib.side }}</td>
+            <td><img src="{{ calib.image_path }}" alt="Imagem de calibração"></td>
+            <td>
+                ({{ calib.point1_x }}, {{ calib.point1_y }}) <br>
+                ({{ calib.point2_x }}, {{ calib.point2_y }}) <br>
+                ({{ calib.point3_x }}, {{ calib.point3_y }}) <br>
+                ({{ calib.point4_x }}, {{ calib.point4_y }})
+            </td>
+            <td>
+                <button class="delete-btn" data-id="{{ calib.id }}">Excluir</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelectorAll(".delete-btn").forEach(button => {
+                button.addEventListener("click", function() {
+                    let id = this.getAttribute("data-id");
+                    if (confirm("Tem certeza que deseja excluir esta calibração?")) {
+                        fetch(`/delete_calibration/${id}`, { method: 'DELETE' })
+                            .then(response => response.json())
+                            .then(data => {
+                                alert(data.message);
+                                location.reload();
+                            });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

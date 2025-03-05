@@ -166,6 +166,20 @@ def index():
 def calibration():
     return render_template('calibration.html')
 
+@app.route('/manage_calibrations')
+def manage_calibrations():
+    calibrations = Calibration.query.all()
+    return render_template('manage_calibrations.html', calibrations=calibrations)
+
+@app.route('/delete_calibration/<int:id>', methods=['DELETE'])
+def delete_calibration(id):
+    calibration = Calibration.query.get(id)
+    if calibration:
+        db.session.delete(calibration)
+        db.session.commit()
+        return jsonify({"message": "Calibração excluída com sucesso!"}), 200
+    return jsonify({"error": "Registro não encontrado!"}), 404
+
 @app.route('/video_feed')
 def video_feed():
     return Response(process_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
